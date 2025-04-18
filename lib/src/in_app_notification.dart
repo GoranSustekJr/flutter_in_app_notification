@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:in_app_notification/src/interact_animation_controller.dart';
-import 'package:in_app_notification/src/size_listenable_container.dart';
+import 'package:in_app_notification_desktop/src/interact_animation_controller.dart';
+import 'package:in_app_notification_desktop/src/size_listenable_container.dart';
 
 part 'vsync_provider.dart';
 

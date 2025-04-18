@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:in_app_notification/in_app_notification.dart';
-import 'package:in_app_notification/src/size_listenable_container.dart';
+import 'package:in_app_notification_desktop/in_app_notification.dart';
+import 'package:in_app_notification_desktop/src/size_listenable_container.dart';
 
 T? _ambiguate<T>(T? value) => value;
 
