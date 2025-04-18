@@ -367,7 +367,7 @@ class HorizontalInteractAnimationController extends AnimationController
   // Show method: Animate from right (off-screen) to the final position on the screen
   Future<void> show() async {
     currentAnimation = Tween(
-      begin: -_screenWidth * 2, // Start off-screen to the right
+      begin: -_screenWidth + 500, // Start off-screen to the right
       end: 0.0, // Move to the visible right side of the screen
     ).chain(CurveTween(curve: Curves.easeOut)).animate(this);
 
