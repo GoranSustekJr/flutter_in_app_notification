@@ -10,7 +10,7 @@ abstract class InteractnimationController {
   Future<void> stay();
 
   /// Animate to dismiss the notification.
-  Future<void> dismiss();
+  Future<void> dismiss({bool toLeft = false});
 }
 
 class VerticalInteractAnimationController extends AnimationController
@@ -31,7 +31,8 @@ class VerticalInteractAnimationController extends AnimationController
   }) : super(vsync: vsync, duration: duration);
 
   @override
-  Future<void> dismiss({double currentPosition = 0.0}) async {
+  Future<void> dismiss(
+      {double currentPosition = 0.0, bool toLeft = false}) async {
     currentAnimation = Tween(
       begin: currentPosition - _notificationHeight,
       end: -_notificationHeight,
@@ -71,10 +72,27 @@ class HorizontalInteractAnimationController extends AnimationController
   }) : super(vsync: vsync, duration: duration);
 
   @override
-  Future<void> dismiss() async {
-    final endValue = dragDistance.sign * _screenWidth;
-    currentAnimation = Tween(begin: dragDistance, end: endValue)
-        .chain(_defaultCurve)
+  Future<void> dismiss({bool toLeft = false}) async {
+    // If toRight is true, animate out to the right, else dismiss to the left
+    final endValue = toLeft
+        ? _screenWidth // Move to the right side of the screen
+        : dragDistance.sign *
+            _screenWidth; // Dismiss to the left side if not toRight
+
+    currentAnimation = Tween(
+      begin: 0.0, // Start from the visible position
+      end: endValue, // End at the off-screen position (either left or right)
+    ).chain(CurveTween(curve: Curves.easeOut)).animate(this);
+
+    dragDistance = 0.0;
+    await forward(from: 0.0);
+    currentAnimation = null;
+  }
+
+  @override
+  Future<void> stay() async {
+    currentAnimation = Tween(begin: dragDistance, end: 0.0)
+        .chain(CurveTween(curve: Curves.easeOut))
         .animate(this);
     dragDistance = 0.0;
 
@@ -82,13 +100,15 @@ class HorizontalInteractAnimationController extends AnimationController
     currentAnimation = null;
   }
 
-  @override
-  Future<void> stay() async {
-    currentAnimation =
-        Tween(begin: dragDistance, end: 0.0).chain(_defaultCurve).animate(this);
-    dragDistance = 0.0;
+  // Show method: Animate from the bottom-right to the visible position
+  Future<void> show() async {
+    // Starts below the screen, from the bottom-right corner
+    currentAnimation = Tween(
+      begin:
+          _screenWidth, // Start below the screen (off the screen on the right)
+      end: 0.0, // Slide up into the visible screen from the bottom-right corner
+    ).chain(CurveTween(curve: Curves.easeOut)).animate(this);
 
     await forward(from: 0.0);
-    currentAnimation = null;
   }
 }

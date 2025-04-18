@@ -60,6 +60,7 @@ class InAppNotification extends StatelessWidget {
     VoidCallback? onTap,
     Duration duration = const Duration(seconds: 10),
     Curve curve = Curves.easeOutCubic,
+    double width = 250,
     Curve dismissCurve = Curves.easeOutCubic,
     @visibleForTesting FutureOr Function()? notificationCreatedCallback,
   }) async {
@@ -67,7 +68,8 @@ class InAppNotification extends StatelessWidget {
 
     assert(controller != null, 'Not found InAppNotification controller.');
 
-    await controller!.create(child: child, context: context, onTap: onTap);
+    await controller!
+        .create(child: child, context: context, width: width, onTap: onTap);
     if (kDebugMode) {
       await notificationCreatedCallback?.call();
     }
@@ -113,6 +115,7 @@ class _NotificationController extends InheritedWidget {
   Future<void> create({
     required Widget child,
     required BuildContext context,
+    required double width,
     VoidCallback? onTap,
   }) async {
     await dismiss(shouldAnimation: !state.showController.isDismissed);
@@ -130,9 +133,9 @@ class _NotificationController extends InheritedWidget {
         }
 
         return Positioned(
-          bottom: state.screenSize.height - state.currentVerticalPosition,
-          left: state.currentHorizontalPosition,
-          width: state.screenSize.width,
+          bottom: 20,
+          right: state.currentHorizontalPosition,
+          width: width,
           child: SizeListenableContainer(
             onSizeChanged: (size) {
               if (state.notificationSizeCompleter.isCompleted) return;
@@ -156,6 +159,9 @@ class _NotificationController extends InheritedWidget {
     );
 
     Navigator.of(context).overlay?.insert(state.overlay!);
+
+    // Animate the notification from the right outside of the screen to the visible part of the screen on the right
+    await state.horizontalAnimationController.show();
   }
 
   Future<void> show({
@@ -171,8 +177,8 @@ class _NotificationController extends InheritedWidget {
 
     if (isSizeChanged) {
       state.showAnimation = Tween(
-        begin: 0.0,
-        end: state.notificationSize.height,
+        begin: 1.0,
+        end: state.notificationSize.width,
       ).animate(
         CurvedAnimation(
           parent: state.showController,
@@ -222,9 +228,11 @@ class _NotificationController extends InheritedWidget {
     final velocity =
         details.velocity.pixelsPerSecond.dy * state.screenSize.height;
     if (velocity <= -1.0) {
-      await state.verticalAnimationController
-          .dismiss(currentPosition: state.currentVerticalPosition);
-      await dismiss(shouldAnimation: false);
+      await state.verticalAnimationController.dismiss(
+          currentPosition: state.currentVerticalPosition, toLeft: false);
+      await dismiss(
+        shouldAnimation: false,
+      );
       return;
     }
 
@@ -232,15 +240,17 @@ class _NotificationController extends InheritedWidget {
       if (state.verticalAnimationController.dragDistance == 0.0) return;
       await state.verticalAnimationController.stay();
     } else {
-      await state.verticalAnimationController
-          .dismiss(currentPosition: state.currentVerticalPosition);
+      await state.verticalAnimationController.dismiss(
+          currentPosition: state.currentVerticalPosition, toLeft: false);
       await dismiss(shouldAnimation: false);
     }
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    state.horizontalAnimationController.dragDistance += details.delta.dx;
-    state.updateNotification();
+    if (details.primaryDelta! > 0) {
+      state.horizontalAnimationController.dragDistance -= details.delta.dx;
+      state.updateNotification();
+    }
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) async {
@@ -250,7 +260,8 @@ class _NotificationController extends InheritedWidget {
         state.screenSize.width;
 
     if (velocity.abs() >= 1.0 || position.abs() >= 0.2) {
-      await state.horizontalAnimationController.dismiss();
+      await state.horizontalAnimationController.dismiss(toLeft: false);
+
       dismiss(shouldAnimation: false);
     } else {
       await state.horizontalAnimationController.stay();
@@ -305,5 +316,61 @@ class _NotificationState {
 
   void updateNotification() {
     overlay?.markNeedsBuild();
+  }
+}
+
+class HorizontalInteractAnimationController extends AnimationController
+    implements InteractnimationController {
+  @override
+  Animation<double>? currentAnimation;
+
+  @override
+  double dragDistance = 0.0;
+
+  double _screenWidth = 0.0;
+
+  set screenWidth(double value) => _screenWidth = value;
+
+  HorizontalInteractAnimationController({
+    required TickerProvider vsync,
+    required Duration duration,
+  }) : super(vsync: vsync, duration: duration);
+
+  @override
+  Future<void> dismiss({bool toLeft = false}) async {
+    final endValue = toLeft
+        ? _screenWidth // Move to the right side of the screen
+        : dragDistance.sign *
+            _screenWidth; // Dismiss to the left side if not toLeft
+
+    currentAnimation = Tween(
+      begin: dragDistance,
+      end: endValue,
+    ).chain(CurveTween(curve: Curves.easeOut)).animate(this);
+
+    dragDistance = 0.0;
+    await forward(from: 0.0);
+    currentAnimation = null;
+  }
+
+  @override
+  Future<void> stay() async {
+    currentAnimation = Tween(begin: dragDistance, end: 0.0)
+        .chain(CurveTween(curve: Curves.easeOut))
+        .animate(this);
+    dragDistance = 0.0;
+
+    await forward(from: 0.0);
+    currentAnimation = null;
+  }
+
+  // Show method: Animate from right (off-screen) to the final position on the screen
+  Future<void> show() async {
+    currentAnimation = Tween(
+      begin: -_screenWidth * 2, // Start off-screen to the right
+      end: 0.0, // Move to the visible right side of the screen
+    ).chain(CurveTween(curve: Curves.easeOut)).animate(this);
+
+    await forward(from: 0.0);
   }
 }

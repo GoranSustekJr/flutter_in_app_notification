@@ -76,10 +76,11 @@ class _HomePageState extends State<HomePage> {
                 InAppNotification.show(
                   child: NotificationBody(
                     count: _count,
-                    minHeight: _minHeight,
+                    minHeight: 200,
                   ),
+                  width: 300,
                   context: context,
-                  onTap: () => print('Notification tapped!'),
+                  onTap: () => InAppNotification.dismiss(context: context),
                   duration: Duration(milliseconds: _duration),
                 );
               },
@@ -148,10 +149,6 @@ class NotificationBody extends StatelessWidget {
                   child: Center(
                     child: Text(
                       'Count: $count',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headline4!
-                          .copyWith(color: Colors.white),
                     ),
                   ),
                 ),
